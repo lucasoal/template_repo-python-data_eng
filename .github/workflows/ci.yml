@@ -1,0 +1,202 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - dev
+      - "feat/**"
+      - "fix/**"
+  pull_request:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  ci:
+    name: Code Quality, Formatting & Tests
+    runs-on: ubuntu-latest
+
+    steps:
+
+      ##########################################################
+      # Checkout
+      ##########################################################
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      ##########################################################
+      # Node
+      ##########################################################
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      ##########################################################
+      # Python
+      ##########################################################
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      ##########################################################
+      # Dependencies
+      ##########################################################
+
+      - name: Install Dependencies
+        run: |
+
+          sudo apt-get update
+
+          sudo apt-get install -y \
+            shellcheck
+
+          npm install -g prettier
+
+          python -m pip install --upgrade pip
+
+          pip install \
+            "black[jupyter]" \
+            isort \
+            sqlfluff \
+            pytest \
+            pyspark \
+            chispa \
+            databricks-cli \
+            apache-airflow==2.10.5
+
+      ##########################################################
+      # Sanitize Emails
+      ##########################################################
+
+      - name: Sanitize Emails
+        run: |
+
+          find . \
+            -type f \
+            \( \
+              -name "*.py" -o \
+              -name "*.ipynb" -o \
+              -name "*.sql" -o \
+              -name "*.json" -o \
+              -name "*.md" -o \
+              -name "*.yml" -o \
+              -name "*.yaml" \
+            \) \
+            -not -path "./.git/*" \
+            -exec sed -i -E \
+            's/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/__________/g' \
+            {} +
+
+      ##########################################################
+      # Prettier
+      ##########################################################
+
+      - name: Format JSON & JS
+        run: |
+
+          prettier --write "**/*.{json,js}"
+
+      ##########################################################
+      # isort
+      ##########################################################
+
+      - name: Organize Imports
+        run: |
+          isort . --profile black
+
+      ##########################################################
+      # Black
+      ##########################################################
+
+      - name: Format Python
+        run: |
+
+          black .
+
+      ##########################################################
+      # SQLFluff
+      ##########################################################
+
+      - name: Fix SQL
+        run: |
+
+          sqlfluff fix . \
+            --dialect databricks \
+            --force \
+            --ignore parsing,layout
+
+      ##########################################################
+      # ShellCheck
+      ##########################################################
+
+      - name: ShellCheck
+        run: |
+
+          find . \
+            -type f \
+            -name "*.sh" \
+            -not -path "./.git/*" \
+            -exec shellcheck {} +
+
+      ##########################################################
+      # SQLFluff Lint
+      ##########################################################
+
+      - name: Lint SQL
+        run: |
+
+          sqlfluff lint . \
+            --dialect databricks \
+            --ignore parsing,layout
+
+      ##########################################################
+      # Tests
+      ##########################################################
+
+      - name: Run Tests
+        run: |
+          if [ -d "tests" ]; then
+            pytest tests/ --ignore=tests/dags || rc=$?
+
+            if [ "${rc:-0}" -eq 5 ]; then
+              echo "No tests found. Skipping."
+              exit 0
+            fi
+
+            exit ${rc:-0}
+          else
+            echo "No tests directory found."
+          fi
+      ##########################################################
+      # Commit Formatting
+      ##########################################################
+
+      - name: Commit Changes
+        if: github.event_name == 'push'
+        run: |
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add .
+
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+            exit 0
+          fi
+
+          git commit -m "style: automatic formatting [skip ci]"
+          git push

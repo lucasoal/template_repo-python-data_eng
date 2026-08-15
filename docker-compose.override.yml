@@ -1,0 +1,19 @@
+services:
+  scheduler:
+    volumes:
+      - ./dags:/usr/local/airflow/dags
+      - ./include:/usr/local/airflow/include
+      - ./plugins:/usr/local/airflow/plugins
+      - ./tmp:/usr/local/airflow/tmp
+  webserver:
+    volumes:
+      - ./dags:/usr/local/airflow/dags
+      - ./include:/usr/local/airflow/include
+      - ./plugins:/usr/local/airflow/plugins
+      - ./tmp:/usr/local/airflow/tmp
+  triggerer:
+    volumes:
+      - ./dags:/usr/local/airflow/dags
+      - ./include:/usr/local/airflow/include
+      - ./plugins:/usr/local/airflow/plugins
+      - ./tmp:/usr/local/airflow/tmp

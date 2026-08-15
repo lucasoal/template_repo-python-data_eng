@@ -1,0 +1,32 @@
+# Python
+*$py.class
+*.py[cod]
+.env
+.venv/
+__pycache__/
+env/
+venv/
+
+# Astro CLI
+.astro/
+logs/
+
+# Dados e Temporários
+*.log
+*.pkl
+include/src/sa_gcp.json
+tmp/
+tmp/**/*.csv
+tmp/**/*.jpeg
+tmp/**/*.jpg
+tmp/**/*.json
+tmp/**/*.mp4
+tmp/**/*.png
+tmp/**/*.xlsx
+view.png
+include/assets/*json
+
+# Sistema
+.DS_Store
+.vscode/
+Thumbs.db
